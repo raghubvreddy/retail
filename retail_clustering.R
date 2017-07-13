@@ -3,14 +3,12 @@
 #install.packages("sqldf")
 #install.packages("dplyr")
 #install.packages("data.table")
-#install.packages("cluster")
 library(dplyr)
 library(readxl)
 library(sqldf)
 library(xlsx)
 library(data.table)
 library(ggplot2)
-library(cluster)
 getwd()
 
 #importing data from excel
@@ -34,18 +32,21 @@ retail_data1=as.data.frame(retail_data)
 retail_data1=sqldf("SELECT * FROM retail_data1 WHERE InvoiceNo NOT LIKE '%C%'")
 tail(retail_data1$InvoiceNo,50)
 str(retail_data1)
-#c=sqldf("SELECT * retail_data1=sqldf("SELECT * FROM retail_data1 WHERE InvoiceNo
-#NOT LIKE '%C%'")
-
+#c=sqldf("SELECT * FROM retail_data1 WHERE InvoiceNo LIKE '%C%'")
+#dim(c)
+#rm(c)
+#2. Creating a new column  "BILLAMOUNT" from Quantity and Unit Price
+#this is using dplyr package
+#retail_data2 <- as.table(retail_data1)
 retail_data1 <- mutate(retail_data1, BILLAMOUNT = Quantity * UnitPrice)
 #######3. Treatment of NAs, Missing values and outliers
 #sum(is.na(retail_data1))
 #sum(is.na(retail_data1$Quantity))
 # 4. Dropping the non-relevant columns 
-retail_data1=as.data.frame(retail_data1[,c(1,4,6)])
+retail_data1=as.data.frame(retail_data1[,c(1,4,6,9)])
 head(retail_data1)
-sum(is.na(retail_data1$CustomerID))
-num1=as.integer(retail_data1$CustomerID)
+#sum(is.na(retail_data1$CustomerID))
+#num1=as.integer(retail_data1$CustomerID)
 dim(retail_data1)
 sum(is.na(retail_data1))
 summary(retail_data1$BILLAMOUNT)
@@ -58,21 +59,43 @@ View(retail_data1)
 #str(up_neg)
 #Removing the observations with Unit price <=0 and also quantity <=0
 retail_data2=retail_data1[retail_data1$UnitPrice > 0 ,]
+
 #str(retail_data2)
 summary(retail_data2$UnitPrice)
 
 boxplot(retail_data2$UnitPrice)
 boxplot.stats(retail_data2$BILLAMOUNT)
+hist(retail_data2$BILLAMOUNT)
+
+#Considering only  the observations with Unit price < 10000 and also quantity  < 5000 as 
+#there are only 2 observations above these values so they are outliers
+retail_data2=retail_data2[retail_data2$UnitPrice < 10000,]
+retail_data2=retail_data2[retail_data2$Quantity < 5000,]
+dim(retail_data2)
+retail_data2=na.omit(retail_data2)
+retail_data2[(retail_data2$UnitPrice > 3500 & retail_data2$UnitPrice < 10000  ),]
+dim(retail_data2)
+summary(retail_data2)
+
+####Cluster fitting
+retail_data3=retail_data2[,c(2,4)]
+str(retail_data3)
+
+
+
+
+
+
 ## fitting k means
 
 set.seed(30)
 wcss<-vector()
-for(i in 1:25)wcss[i]<-sum(kmeans(retail_data2[,c(2,3)],i)$withinss)
+for(i in 1:25)wcss[i]<-sum(kmeans(retail_data3,i)$withinss)
 plot(1:25,wcss,type ="b",main = "Order/Qty. clusters",xlab = "no of.clusters",ylab = "wcss")
 
 #fitting the kmeans to the dataset
 set.seed(7)
-kmeans=kmeans(retail_data2[,c(2,3)],7,iter.max=10)
+kmeans=kmeans(retail_data2[,c(2,3)],14,iter.max=10)
 #visualising the clusters for this 2 dimensional variables
 
 clusplot(retail_data2[,c(2,3)],kmeans$cluster,lines = 0,
